@@ -34,7 +34,7 @@ sudo pacman -S fwupd
 
 # Installation des polices
 
-sudo pacman -S ttf-dejavu ttf-liberation ttf-meslo-nerd noto-fonts-emoji adobe-source-code-pro-fonts otf-font-awesome ttf-droid
+sudo pacman -S freetype2 ttf-dejavu ttf-liberation ttf-meslo-nerd noto-fonts-emoji adobe-source-code-pro-fonts otf-font-awesome ttf-droid
 
 # Archivage et compression
 
