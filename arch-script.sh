@@ -1,11 +1,10 @@
 #!/bin/bash
-pacman -S pv
 echo "---------------------------------------------------"
-pv | echo "Installation d'Arch Linux"
+echo "Installation d'Arch Linux"
 echo "---------------------------------------------------"
 # Mettre à jour l'horloge  
-pv | echo "Mise à jour de l'horloge"
-timedatectl set-ntp true |pv
+echo "Mise à jour de l'horloge"
+timedatectl set-ntp true
 echo "---------------------------------------------------"
 echo "ETAPE 1 - PARTITIONNEMENT DU DISQUE"
 # Avertissement sur le partitionnement  
