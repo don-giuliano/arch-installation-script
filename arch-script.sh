@@ -35,6 +35,6 @@ if [[ -z "$disque" ]]; then
 fi
 
 echo "Vous avez choisi le disque : /dev/$disque"
-
+exit 0
 
 
