@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "---------------------------------------------------"
-echo "Installation d'Arch Linux"
+pv | echo "Installation d'Arch Linux"
 echo "---------------------------------------------------"
 # Mettre à jour l'horloge  
 echo "Mise à jour de l'horloge"
