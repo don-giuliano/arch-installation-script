@@ -1,18 +1,20 @@
 #!/bin/bash
-
+echo "---------------------------------------------------"
 echo "Installation d'Arch Linux"
-
+echo "---------------------------------------------------"
 # Mettre à jour l'horloge  
 echo "Mise à jour de l'horloge"
 timedatectl set-ntp true
+echo "---------------------------------------------------"
 echo "ETAPE 1 - PARTITIONNEMENT DU DISQUE"
 # Avertissement sur le partitionnement  
 echo "---------------------------------------------------"
 echo "AVERTISSEMENT : Cette opération va effacer toutes les données sur le disque spécifié."
 echo "Veuillez vous assurer que vous avez sauvegardé toutes vos données importantes avant de continuer."
+echo "---------------------------------------------------"
 echo "Voici les disques disponibles :"
 lsblk
-
+echo "---------------------------------------------------"
 # Demander à l'utilisateur d'entrer le disque à partitionner  
 echo "Entrez le disque à partitionner (ex : /dev/sda) : "
 read -r disk
