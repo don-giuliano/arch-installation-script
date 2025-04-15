@@ -3,7 +3,7 @@ echo "---------------------------------------------------"
 pv | echo "Installation d'Arch Linux"
 echo "---------------------------------------------------"
 # Mettre à jour l'horloge  
-echo "Mise à jour de l'horloge"
+pv | echo "Mise à jour de l'horloge"
 timedatectl set-ntp true |pv
 echo "---------------------------------------------------"
 echo "ETAPE 1 - PARTITIONNEMENT DU DISQUE"
