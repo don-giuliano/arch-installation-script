@@ -13,14 +13,16 @@ echo "-------------------------"
 echo "Partionnement du disque"
 echo "                         "
 
-# Avertissement
+# Message d'avertissement
 echo "AVERTISSEMENT : Cette opération va effacer toutes les données sur le disque spécifié."
 echo "Veuillez vous assurer que vous avez sauvegardé toutes vos données importantes avant de continuer."
-echo "                                                   "  
+echo "                                                          "  
+
+# Choix du disque à partitionner
 echo "Sélectionnez un disque à partitionner parmi les suivants :"
 lsblk -d -n -o NAME,SIZE | nl
 
-# Demande à l'utilisateur de rentrer le numéro du disque  
+# Demande à l'utilisateur de rentrer le numéro du disque à partitionner 
 read -p "Entrez le numéro du disque : " num
 
 # Récupère le nom du disque correspondant au numéro  
