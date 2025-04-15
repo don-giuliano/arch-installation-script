@@ -3,8 +3,9 @@
 echo "Installation d'Arch Linux"
 
 # Mettre à jour l'horloge  
+echo "Mise à jour de l'horloge"
 timedatectl set-ntp true
-
+echo "ETAPE 1 - PARTITIONNEMENT DU DISQUE"
 # Avertissement sur le partitionnement  
 echo "---------------------------------------------------"
 echo "AVERTISSEMENT : Cette opération va effacer toutes les données sur le disque spécifié."
