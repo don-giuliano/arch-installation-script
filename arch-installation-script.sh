@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo pacman -S pv
-echo "Installation d'Arch Linux"
+pv echo "Installation d'Arch Linux"
 
 # Mettre à jour l'horloge  
 timedatectl set-ntp true
