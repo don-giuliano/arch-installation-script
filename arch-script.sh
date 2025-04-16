@@ -16,6 +16,12 @@ if [ $? -ne 0 ]; then
     exit 1  
 fi
 
+# Vérifier que whiptail est installé 
+if ! command -v whiptail >/dev/null; then  
+    echo -e "${RED}Erreur : whiptail n'est pas installé. Veuillez installer whiptail.${NC}"
+    exit 1  
+fi
+
 # Choix du layout de clavier avec whiptail  
 keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélectionnez votre layout:" 15 60 9 \
 "us" "États-Unis" \
@@ -38,15 +44,13 @@ echo "Vous avez sélectionné le layout : $keyboard_layout"
 loadkeys "$keyboard_layout"
 
 # Affichage des disques disponibles avec un numéro  
-echo -e "${LIGHT_BLUE}Disques disponibles :${NC}"
 disks=$(lsblk -d -n -o NAME | awk '{print "/dev/"$1}')
 disk_choices=() # Tableau pour stocker les choix
 
 i=1  
 for disk in $disks; do  
     size=$(lsblk -d -n -o SIZE "$disk")
-    echo "${i}: $disk ($size)"
-    disk_choices+=("$i" "$disk") # Ajouter chaque choix à un tableau  
+    disk_choices+=("$i" "$disk ($size)") # Ajouter chaque choix à un tableau  
     i=$((i + 1))
 done
 
@@ -61,7 +65,7 @@ fi
 
 disk=$(echo "$disks" | sed -n "${disk_number}p")
 
-# Demander au choix d'utiliser le chiffrement LUKS  
+# Demander le choix d'utiliser le chiffrement LUKS  
 if (whiptail --title "Chiffrement LUKS" --yesno "Voulez-vous chiffrer le disque avec LUKS ?" 8 45); then  
     encrypt_choice="y"
 else  
@@ -75,38 +79,28 @@ if [ -n "$mounted_partitions" ]; then
     umount "${disk}"* || { echo -e "${RED}Erreur lors du démontage des partitions sur $disk.${NC}"; exit 1; }
 fi
 
-# Menu pour le choix du type de partitionnement  
-echo -e "${LIGHT_BLUE}Choix de la méthode de partitionnement :${NC}"
-echo "1. Partitionnement automatique"
-echo "2. Partitionnement avancé avec cfdisk"
+# Choix de la méthode de partitionnement  
+partition_choice=$(whiptail --title "Méthode de partitionnement" --menu "Sélectionnez une option :" 15 60 2 \
+"1" "Partitionnement automatique" \
+"2" "Partitionnement avancé avec cfdisk" 3>&1 1>&2 2>&3)
 
-while true; do  
-    partition_choice=$(whiptail --title "Méthode de partitionnement" --menu "Sélectionnez une option :" 15 60 2 \
-    "1" "Partitionnement automatique" \
-    "2" "Partitionnement avancé avec cfdisk" 3>&1 1>&2 2>&3)
+# Vérifier si l'utilisateur a annulé  
+if [ $? != 0 ]; then  
+    echo -e "${RED}Opération annulée.${NC}"
+    exit 1  
+fi
 
-    # Vérifier si l'utilisateur a annulé  
-    if [ $? != 0 ]; then  
-        echo -e "${RED}Opération annulée.${NC}"
-        exit 1  
-    fi
-    
-    if [ "$partition_choice" = "1" ]; then  
-        # Partitionnement automatique  
-        echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
-        (
-            echo ,,,   # Partition principale pour le système  
-        ) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
-        break  
-    elif [ "$partition_choice" = "2" ]; then  
-        # Partitionnement avancé avec cfdisk  
-        echo -e "${LIGHT_BLUE}Lancement de cfdisk sur le disque $disk...${NC}"
-        cfdisk "$disk" || { echo -e "${RED}Erreur lors de l'utilisation de cfdisk !${NC}"; exit 1; }
-        break  
-    else  
-        echo -e "${RED}Choix invalide. Veuillez sélectionner 1 ou 2.${NC}"
-    fi  
-done
+if [ "$partition_choice" = "1" ]; then  
+    # Partitionnement automatique  
+    echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
+    (
+        echo ,,,   # Partition principale pour le système  
+    ) | sfdisk "$disk" --noreread || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
+elif [ "$partition_choice" = "2" ]; then  
+    # Partitionnement avancé avec cfdisk  
+    echo -e "${LIGHT_BLUE}Lancement de cfdisk sur le disque $disk...${NC}"
+    cfdisk "$disk" || { echo -e "${RED}Erreur lors de l'utilisation de cfdisk !${NC}"; exit 1; }
+fi
 
 # Si LUKS est choisi, chiffrer la partition avec LUKS  
 partition="${disk}1"  # Normalement la première partition (système)
@@ -129,7 +123,7 @@ mount "$partition" /mnt || { echo -e "${RED}Erreur lors du montage de la partiti
 
 # Choix du type de swap  
 swap_choice=$(whiptail --title "Choix du type de swap" --menu "Sélectionnez une option :" 15 60 3 \
-"1" "Swap zram (compression en mémoire)" \
+"1" "Swap zram (compression en mémoire)"
 "2" "Partition swap classique" \
 "3" "Pas de swap" 3>&1 1>&2 2>&3)
 
@@ -165,7 +159,7 @@ case $swap_choice in
         echo -e "${LIGHT_BLUE}Création d'une partition de swap sur $swap_partition...${NC}"
         (
             echo ,+2G,  # Partition de swap d'une taille de 2 Go  
-        ) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création de la partition swap !${NC}"; exit 1; }
+        ) | sfdisk "$disk" --noreread || { echo -e "${RED}Erreur lors de la création de la partition swap !${NC}"; exit 1; }
 
         # Formatage de la partition swap  
         mkswap "$swap_partition" || { echo -e "${RED}Erreur lors du formatage de la partition swap !${NC}"; exit 1; }
@@ -176,13 +170,19 @@ case $swap_choice in
         echo -e "${LIGHT_BLUE}Aucun swap ne sera configuré.${NC}"
         ;;
     *)
-        echo -e "${RED}Choix invalide. Veuillez sélectionner 1, 2 ou 3.${NC}"  
+        echo -e "${RED}Choix invalide. Veuillez sélectionner 1, 2 ou 3.${NC}"
         exit 1  
         ;;
 esac
 
 # Choix du hostname  
-read -p "Entrez le nom d'hôte pour votre système (par exemple, 'archlinux') : " hostname
+hostname=$(whiptail --inputbox "Entrez le nom d'hôte pour votre système (par exemple, 'archlinux') :" 8 60 "archlinux" 3>&1 1>&2 2>&3)
+
+# Vérifier si l'utilisateur a annulé  
+if [ $? != 0 ]; then  
+    echo -e "${RED}Opération annulée.${NC}"
+    exit 1  
+fi
 
 # Installation de base 
 echo -e "${LIGHT_BLUE}Installation du système de base...${NC}"
