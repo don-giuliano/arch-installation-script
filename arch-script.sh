@@ -5,10 +5,8 @@ LIGHT_BLUE='\033[1;34m' # Un bleu clair
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
-# Affichage du message de bienvenue  
-echo "---------------------------------------------------------------------------"
-echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
-echo "---------------------------------------------------------------------------"
+# Affichage du message de bienvenue avec whiptail  
+whiptail --title "Bienvenue !" --msgbox "Bienvenue dans le script d'installation d'Arch Linux !" 10 60
 
 # Vérification de la connexion internet  
 echo -e "${LIGHT_BLUE}Vérification de la connexion internet...${NC}"
@@ -19,7 +17,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Choix du layout de clavier avec whiptail  
-keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélectionnez votre layout:" 20 60 9 \
+keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélectionnez votre layout:" 15 60 9 \
 "us" "États-Unis" \
 "fr" "Français" \
 "de" "Allemand" \
@@ -30,6 +28,7 @@ keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélecti
 "ru" "Russe" \
 "other" "Autre" 3>&1 1>&2 2>&3)
 
+# Vérifier si l'utilisateur a annulé  
 if [ $? != 0 ]; then  
     echo -e "${RED}Opération annulée.${NC}"
     exit 1  
@@ -39,17 +38,22 @@ echo "Vous avez sélectionné le layout : $keyboard_layout"
 loadkeys "$keyboard_layout"
 
 # Affichage des disques disponibles avec un numéro  
+echo -e "${LIGHT_BLUE}Disques disponibles :${NC}"
 disks=$(lsblk -d -n -o NAME | awk '{print "/dev/"$1}')
-disk_list=""
+disk_choices=() # Tableau pour stocker les choix
+
 i=1  
 for disk in $disks; do  
     size=$(lsblk -d -n -o SIZE "$disk")
-    disk_list="$disk_list $i $disk ($size)"
+    echo "${i}: $disk ($size)"
+    disk_choices+=("$i" "$disk") # Ajouter chaque choix à un tableau  
     i=$((i + 1))
 done
 
 # Sélection du disque à partitionner  
-disk_number=$(whiptail --title "Choix du disque" --menu "Sélectionnez le disque à partitionner :" 15 60 $((i-1)) $disk_list 3>&1 1>&2 2>&3)
+disk_number=$(whiptail --title "Choix du disque" --menu "Sélectionnez le disque à partitionner :" 15 60 $((i-1)) "${disk_choices[@]}" 3>&1 1>&2 2>&3)
+
+# Vérifier si l'utilisateur a annulé  
 if [ $? != 0 ]; then  
     echo -e "${RED}Opération annulée.${NC}"
     exit 1  
@@ -58,7 +62,11 @@ fi
 disk=$(echo "$disks" | sed -n "${disk_number}p")
 
 # Demander au choix d'utiliser le chiffrement LUKS  
-encrypt_choice=$(whiptail --title "Chiffrement LUKS" --yesno "Voulez-vous chiffrer le disque avec LUKS ?" 8 45 3>&1 1>&2 2>&3)
+if (whiptail --title "Chiffrement LUKS" --yesno "Voulez-vous chiffrer le disque avec LUKS ?" 8 45); then  
+    encrypt_choice="y"
+else  
+    encrypt_choice="n"
+fi
 
 # S'assurer que le disque n'est pas monté avant le partitionnement  
 mounted_partitions=$(lsblk | grep "${disk}" | grep "mnt")
@@ -67,29 +75,42 @@ if [ -n "$mounted_partitions" ]; then
     umount "${disk}"* || { echo -e "${RED}Erreur lors du démontage des partitions sur $disk.${NC}"; exit 1; }
 fi
 
-# Choix de la méthode de partitionnement  
-partition_choice=$(whiptail --title "Méthode de partitionnement" --menu "Sélectionnez une option :" 15 60 2 \
-"1" "Partitionnement automatique" \
-"2" "Partitionnement avancé avec cfdisk" 3>&1 1>&2 2>&3)
+# Menu pour le choix du type de partitionnement  
+echo -e "${LIGHT_BLUE}Choix de la méthode de partitionnement :${NC}"
+echo "1. Partitionnement automatique"
+echo "2. Partitionnement avancé avec cfdisk"
 
-if [ $? != 0 ]; then  
-    echo -e "${RED}Opération annulée.${NC}"
-    exit 1  
-fi
+while true; do  
+    partition_choice=$(whiptail --title "Méthode de partitionnement" --menu "Sélectionnez une option :" 15 60 2 \
+    "1" "Partitionnement automatique" \
+    "2" "Partitionnement avancé avec cfdisk" 3>&1 1>&2 2>&3)
 
-if [ "$partition_choice" = "1" ]; then  
-    echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
-    (
-        echo ,,,   # Partition principale pour le système  
-    ) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
-else  
-    echo -e "${LIGHT_BLUE}Lancement de cfdisk sur le disque $disk...${NC}"
-    cfdisk "$disk" || { echo -e "${RED}Erreur lors de l'utilisation de cfdisk !${NC}"; exit 1; }
-fi
+    # Vérifier si l'utilisateur a annulé  
+    if [ $? != 0 ]; then  
+        echo -e "${RED}Opération annulée.${NC}"
+        exit 1  
+    fi
+    
+    if [ "$partition_choice" = "1" ]; then  
+        # Partitionnement automatique  
+        echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
+        (
+            echo ,,,   # Partition principale pour le système  
+        ) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
+        break  
+    elif [ "$partition_choice" = "2" ]; then  
+        # Partitionnement avancé avec cfdisk  
+        echo -e "${LIGHT_BLUE}Lancement de cfdisk sur le disque $disk...${NC}"
+        cfdisk "$disk" || { echo -e "${RED}Erreur lors de l'utilisation de cfdisk !${NC}"; exit 1; }
+        break  
+    else  
+        echo -e "${RED}Choix invalide. Veuillez sélectionner 1 ou 2.${NC}"
+    fi  
+done
 
 # Si LUKS est choisi, chiffrer la partition avec LUKS  
 partition="${disk}1"  # Normalement la première partition (système)
-if [ "$encrypt_choice" = "0" ]; then  
+if [ "$encrypt_choice" = "y" ]; then  
     echo -e "${LIGHT_BLUE}Chiffrement de la partition $partition avec LUKS...${NC}"
     cryptsetup luksFormat "$partition" || { echo -e "${RED}Erreur lors du chiffrement de la partition !${NC}"; exit 1; }
 
