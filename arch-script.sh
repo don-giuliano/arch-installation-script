@@ -41,32 +41,43 @@ while true; do
     fi  
 done
 
-# Partitionnement avec cfdisk  
-echo -e "${LIGHT_BLUE}Partitionnement du disque $disk avec cfdisk...${NC}"
-cfdisk "$disk" || { echo -e "${RED}Erreur lors du partitionnement !${NC}"; exit 1; }
+# Partitionnement automatique avec sfdisk  
+echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
+(
+echo ,,,   # Partition principale pour le système  
+) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
 
-# Lister les partitions après le partitionnement  
-echo -e "${LIGHT_BLUE}Partitions disponibles sur $disk :${NC}"
-partitions=$(lsblk "$disk" -n -o NAME | awk '{print "/dev/"$1}')
-echo "$partitions"
-
-# Sélection de la partition à formater  
-while true; do  
-    read -p "Entrez le nom de la partition à formater (ex: /dev/sda1) : " partition  
-    if echo "$partitions" | grep -q "$partition"; then  
-        break  
-    else  
-        echo -e "${RED}Partition invalide. Veuillez entrer une partition existante.${NC}"
-    fi  
-done
-
-# Formatage des partitions  
-echo -e "${LIGHT_BLUE}Formatage de la partition $partition...${NC}"
+# Formatage de la partition principale  
+partition="${disk}1"  # Normalement la première partition (système)  
+echo -e "${LIGHT_BLUE}Formatage de la partition système $partition...${NC}"
 mkfs.ext4 "$partition" || { echo -e "${RED}Erreur lors du formatage de la partition !${NC}"; exit 1; }
 
 # Montage des partitions  
 echo -e "${LIGHT_BLUE}Montage de la partition $partition...${NC}"
 mount "$partition" /mnt || { echo -e "${RED}Erreur lors du montage de la partition !${NC}"; exit 1; }
+
+# Installer zram  
+echo -e "${LIGHT_BLUE}Configuration de zram pour le swap...${NC}"
+if ! modprobe zram; then  
+    echo -e "${RED}Erreur lors du chargement de zram !${NC}"
+    exit 1  
+fi
+
+# Configurer zram  
+echo -e "${LIGHT_BLUE}Création d'un swap zram de 2 Go...${NC}"
+echo "lmk 2G" > /sys/block/zram0/disksize
+
+# Formater zram  
+if ! mkswap /dev/zram0; then  
+    echo -e "${RED}Erreur lors du formatage du swap zram !${NC}"
+    exit 1  
+fi
+
+# Activer zram  
+if ! swapon /dev/zram0; then  
+    echo -e "${RED}Erreur lors de l'activation du swap zram !${NC}"
+    exit 1  
+fi
 
 # Installation de base  
 echo -e "${LIGHT_BLUE}Installation du système de base...${NC}"
