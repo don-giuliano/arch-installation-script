@@ -5,7 +5,9 @@ LIGHT_BLUE='\033[1;34m' # Un bleu clair
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
+echo "---------------------------------------------------------------------------"
 echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
+echo "---------------------------------------------------------------------------"
 
 # Vérification de la connexion internet  
 echo -e "${LIGHT_BLUE}Vérification de la connexion internet...${NC}"
@@ -88,10 +90,12 @@ echo -e "${LIGHT_BLUE}Configuration du système...${NC}"
 genfstab -U /mnt >> /mnt/etc/fstab || { echo -e "${RED}Erreur lors de la génération de fstab !${NC}"; exit 1; }
 arch-chroot /mnt /bin/sh <<EOF  
 echo "Bienvenue sur votre nouvel Arch Linux !"
+
 # Configuration locale  
 echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen  
 locale-gen  
 echo "LANG=fr_FR.UTF-8" > /etc/locale.conf  
+
 # Réseau  
 echo "hostname_name" >> /etc/hostname  
 EOF
