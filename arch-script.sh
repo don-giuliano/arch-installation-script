@@ -5,6 +5,8 @@ LIGHT_BLUE='\033[1;34m' # Un bleu clair
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
+# Affichage du message de bienvenue  
+echo "---------------------------------------------------------------------------"
 echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
 echo "---------------------------------------------------------------------------"
 
@@ -52,11 +54,29 @@ if [ -n "$mounted_partitions" ]; then
     umount "${disk}"* || { echo -e "${RED}Erreur lors du démontage des partitions sur $disk.${NC}"; exit 1; }
 fi
 
-# Partitionnement automatique avec sfdisk  
-echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
-(
-    echo ,,,   # Partition principale pour le système  
-) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
+# Menu pour le choix du type de partitionnement  
+echo -e "${LIGHT_BLUE}Choix de la méthode de partitionnement :${NC}"
+echo "1. Partitionnement automatique"
+echo "2. Partitionnement avancé avec cfdisk"
+
+while true; do  
+    read -p "Sélectionnez une option (1 ou 2) : " partition_choice  
+    if [ "$partition_choice" = "1" ]; then  
+        # Partitionnement automatique  
+        echo -e "${LIGHT_BLUE}Création de partitions sur le disque $disk...${NC}"
+        (
+            echo ,,,   # Partition principale pour le système  
+        ) | sfdisk "$disk" || { echo -e "${RED}Erreur lors de la création des partitions !${NC}"; exit 1; }
+        break  
+    elif [ "$partition_choice" = "2" ]; then  
+        # Partitionnement avancé avec cfdisk  
+        echo -e "${LIGHT_BLUE}Lancement de cfdisk sur le disque $disk...${NC}"
+        cfdisk "$disk" || { echo -e "${RED}Erreur lors de l'utilisation de cfdisk !${NC}"; exit 1; }
+        break  
+    else  
+        echo -e "${RED}Choix invalide. Veuillez sélectionner 1 ou 2.${NC}"
+    fi  
+done
 
 # Si LUKS est choisi, chiffrer la partition avec LUKS  
 partition="${disk}1"  # Normalement la première partition (système)
@@ -126,6 +146,9 @@ while true; do
     fi  
 done
 
+# Choix du hostname  
+read -p "Entrez le nom d'hôte pour votre système (par exemple, 'archlinux') : " hostname
+
 # Installation de base 
 echo -e "${LIGHT_BLUE}Installation du système de base...${NC}"
 pacstrap /mnt base linux linux-firmware || { echo -e "${RED}Erreur lors de l'installation de la base !${NC}"; exit 1; }
@@ -133,8 +156,13 @@ pacstrap /mnt base linux linux-firmware || { echo -e "${RED}Erreur lors de l'ins
 # Configuration du système 
 echo -e "${LIGHT_BLUE}Configuration du système...${NC}"
 echo "/dev/mapper/cryptroot  /  ext4  defaults  0  1" >> /mnt/etc/fstab  
-echo -e "${LIGHT_BLUE}Ajout des hooks LUKS à mkinitcpio...${NC}"
-echo "HOOKS=(base udev autodetect modconf block encrypt filesystems keyboard fsck)" > /mnt/etc/mkinitcpio.conf
+
+# Configuration des hooks LUKS uniquement si le chiffrement est utilisé  
+if [ "$encrypt_choice" = "y" ]; then  
+    echo "HOOKS=(base udev autodetect modconf block encrypt filesystems keyboard fsck)" > /mnt/etc/mkinitcpio.conf  
+else  
+    echo "HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)" > /mnt/etc/mkinitcpio.conf  
+fi
 
 # Régénérer l'initramfs  
 echo -e "${LIGHT_BLUE}Régénération de l'initramfs...${NC}"
@@ -147,9 +175,34 @@ echo "Bienvenue sur votre nouvel Arch Linux !"
 echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen  
 locale-gen  
 echo "LANG=fr_FR.UTF-8" > /etc/locale.conf  
-# Réseau  
-echo "hostname_name" >> /etc/hostname  
+# Configuration du hostname  
+echo "$hostname" > /etc/hostname  
 EOF
+
+# Gestion des utilisateurs 
+read -p "Entrez le nom d'utilisateur pour votre système : " username
+
+# Demander au utilisateur d'entrer un mot de passe pour le nouvel utilisateur  
+read -sp "Entrez le mot de passe pour l'utilisateur $username : " user_password  
+echo  
+read -sp "Confirmez le mot de passe pour l'utilisateur $username : " user_password_confirm  
+echo
+
+# Vérifier si les mots de passe correspondent  
+if [ "$user_password" != "$user_password_confirm" ]; then  
+    echo -e "${RED}Les mots de passe ne correspondent pas. Veuillez réexécuter le script.${NC}"
+    exit 1  
+fi
+
+# Création de l'utilisateur  
+arch-chroot /mnt /bin/sh <<EOF  
+useradd -m -G wheel "$username"  
+echo "$username:$user_password" | chpasswd  
+EOF
+
+# Ajouter sudo si l'utilisateur a le groupe wheel  
+echo -e "${LIGHT_BLUE}Configuration de sudo pour l'utilisateur...${NC}"
+arch-chroot /mnt sed -i 's/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 
 # Installation du bootloader 
 echo -e "${LIGHT_BLUE}Installation du bootloader...${NC}"
