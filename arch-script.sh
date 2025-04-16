@@ -1,14 +1,14 @@
 #!/bin/sh
 
 # Définir quelques couleurs pour le texte  
-BLUE='\033[0;34m'
+LIGHT_BLUE='\033[1;34m' # Un bleu clair  
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
-echo -e "${BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
+echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
 
 # Vérification de la connexion internet  
-echo -e "${BLUE}Vérification de la connexion internet...${NC}"
+echo -e "${LIGHT_BLUE}Vérification de la connexion internet...${NC}"
 ping -c 1 archlinux.org > /dev/null 2>&1  
 if [ $? -ne 0 ]; then  
     echo -e "${RED}Aucune connexion internet détectée ! Veuillez vérifier votre connexion.${NC}"
@@ -16,12 +16,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # Choix du clavier  
-echo -e "${BLUE}Choix du layout de clavier (par défaut : us) :${NC}"
+echo -e "${LIGHT_BLUE}Choix du layout de clavier (par défaut : us) :${NC}"
 read -p "Entrez le layout (par exemple, 'us', 'fr', etc.) : " keyboard_layout  
 loadkeys "$keyboard_layout"
 
 # Affichage des disques disponibles avec un numéro  
-echo -e "${BLUE}Disques disponibles :${NC}"
+echo -e "${LIGHT_BLUE}Disques disponibles :${NC}"
 disks=$(lsblk -d -n -o NAME | awk '{print "/dev/"$1}')
 i=1  
 for disk in $disks; do  
@@ -41,42 +41,52 @@ while true; do
     fi  
 done
 
-# Partitionnement du disque  
-echo -e "${BLUE}Partitionnement du disque $disk...${NC}"
-gdisk "$disk"
+# Partitionnement avec cfdisk  
+echo -e "${LIGHT_BLUE}Partitionnement du disque $disk avec cfdisk...${NC}"
+cfdisk "$disk" || { echo -e "${RED}Erreur lors du partitionnement !${NC}"; exit 1; }
+
+# Lister les partitions après le partitionnement  
+echo -e "${LIGHT_BLUE}Partitions disponibles sur $disk :${NC}"
+partitions=$(lsblk "$disk" -n -o NAME | awk '{print "/dev/"$1}')
+echo "$partitions"
+
+# Sélection de la partition à formater  
+while true; do  
+    read -p "Entrez le nom de la partition à formater (ex: /dev/sda1) : " partition  
+    if echo "$partitions" | grep -q "$partition"; then  
+        break  
+    else  
+        echo -e "${RED}Partition invalide. Veuillez entrer une partition existante.${NC}"
+    fi  
+done
 
 # Formatage des partitions  
-echo -e "${BLUE}Formatage des partitions...${NC}"
-read -p "Quelle partition souhaitez-vous formater ? (ex: /dev/sda1) : " partition  
-mkfs.ext4 "$partition"
+echo -e "${LIGHT_BLUE}Formatage de la partition $partition...${NC}"
+mkfs.ext4 "$partition" || { echo -e "${RED}Erreur lors du formatage de la partition !${NC}"; exit 1; }
 
 # Montage des partitions  
-echo -e "${BLUE}Montage des partitions...${NC}"
-mount "$partition" /mnt
+echo -e "${LIGHT_BLUE}Montage de la partition $partition...${NC}"
+mount "$partition" /mnt || { echo -e "${RED}Erreur lors du montage de la partition !${NC}"; exit 1; }
 
 # Installation de base  
-echo -e "${BLUE}Installation du système de base...${NC}"
-pacstrap /mnt base linux linux-firmware
+echo -e "${LIGHT_BLUE}Installation du système de base...${NC}"
+pacstrap /mnt base linux linux-firmware || { echo -e "${RED}Erreur lors de l'installation de la base !${NC}"; exit 1; }
 
 # Configuration du système  
-echo -e "${BLUE}Configuration du système...${NC}"
-genfstab -U /mnt >> /mnt/etc/fstab  
+echo -e "${LIGHT_BLUE}Configuration du système...${NC}"
+genfstab -U /mnt >> /mnt/etc/fstab || { echo -e "${RED}Erreur lors de la génération de fstab !${NC}"; exit 1; }
 arch-chroot /mnt /bin/sh <<EOF  
 echo "Bienvenue sur votre nouvel Arch Linux !"
-
 # Configuration locale  
 echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen  
 locale-gen  
 echo "LANG=fr_FR.UTF-8" > /etc/locale.conf  
-
 # Réseau  
 echo "hostname_name" >> /etc/hostname  
-
-# Configuration du réseau  
 EOF
 
 # Installation du bootloader  
-echo -e "${BLUE}Installation du bootloader...${NC}"
+echo -e "${LIGHT_BLUE}Installation du bootloader...${NC}"
 read -p "Vous utilisez GRUB ? (y/n) : " grub_choice  
 if [ "$grub_choice" = "y" ]; then  
     arch-chroot /mnt /bin/sh <<EOF  
@@ -87,4 +97,4 @@ EOF
 fi
 
 # Finalisation  
-echo -e "${BLUE}Installation terminée ! Redémarrez votre système.${NC}"
+echo -e "${LIGHT_BLUE}Installation terminée ! Redémarrez votre système.${NC}"
