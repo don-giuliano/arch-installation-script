@@ -23,16 +23,25 @@ if ! command -v whiptail >/dev/null; then
 fi
 
 # Choix du layout de clavier avec whiptail  
-keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélectionnez votre layout:" 15 60 9 \
-"us" "États-Unis" \
+keyboard_layout=$(whiptail --title "Choix du layout de clavier" --menu "Sélectionnez votre layout :" 15 60 9 \
+"us" "English (United States)" \
 "fr" "Français" \
-"de" "Allemand" \
-"es" "Espagnol" \
-"it" "Italien" \
-"uk" "Royaume-Uni" \
-"jp" "Japonais" \
-"ru" "Russe" \
+"de" "Deutsch" \
+"es" "Español" \
+"it" "Italiano" \
+"uk" "English (United Kingdom)" \
+"jp" "日本語 (Nihongo)" \
+"ru" "Русский" \
 "other" "Autre" 3>&1 1>&2 2>&3)
+
+# Vérifier si l'utilisateur a annulé  
+if [ $? != 0 ]; then  
+    echo -e "${RED}Opération annulée.${NC}"
+    exit 1  
+fi
+
+echo "Vous avez sélectionné le layout : $keyboard_layout"
+loadkeys "$keyboard_layout"
 
 # Vérifier si l'utilisateur a annulé  
 if [ $? != 0 ]; then  
