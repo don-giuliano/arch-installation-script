@@ -5,6 +5,8 @@ LIGHT_BLUE='\033[1;34m' # Un bleu clair
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
+# Affichage du message de bienvenue  
+echo "---------------------------------------------------------------------------"
 echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
 echo "---------------------------------------------------------------------------"
 
@@ -125,7 +127,7 @@ while true; do
         break  
     elif [ "$swap_choice" = "2" ]; then  
         # Configuration classique de partition swap  
-        swap_partition="${disk}2"  # Supposons qu'il y a une deuxième partition pour le swap  
+        swap_partition="${disk}2"  
         echo -e "${LIGHT_BLUE}Création d'une partition de swap sur $swap_partition...${NC}"
         (
             echo ,+2G,  # Partition de swap d'une taille de 2 Go  
@@ -208,6 +210,7 @@ echo -e "${LIGHT_BLUE}Configuration de sudo pour l'utilisateur...${NC}"
 echo -e "${LIGHT_BLUE}Installation du bootloader...${NC}"
 read -p "Vous utilisez GRUB ? (y/n) : " grub_choice  
 if [ "$grub_choice" = "y" ]; then  
+    echo -e "${LIGHT_BLUE}Installation de GRUB sur /dev/sda...${NC}"
     arch-chroot /mnt /bin/sh <<EOF  
 pacman -S grub  
 grub-install --target=i386-pc /dev/sda  
