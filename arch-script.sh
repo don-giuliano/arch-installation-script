@@ -20,10 +20,27 @@ echo -e "${GREEN}Choix du layout de clavier (par défaut : us) :${NC}"
 read -p "Entrez le layout (par exemple, 'us', 'fr', etc.) : " keyboard_layout  
 loadkeys $keyboard_layout
 
+# Affichage des disques disponibles avec un numéro  
+echo -e "${GREEN}Disques disponibles :${NC}"
+disks=($(lsblk -d -n -o NAME | awk '{print "/dev/"$1}'))
+for i in "${!disks[@]}"; do  
+    size=$(lsblk -d -n -o SIZE ${disks[$i]})
+    echo "$((i+1)): ${disks[$i]} ($size)"
+done
+
+# Sélection du disque à partitionner  
+while true; do  
+    read -p "Choisissez le numéro du disque à partitionner : " disk_number  
+    if [[ $disk_number -ge 1 && $disk_number -le ${#disks[@]} ]]; then  
+        disk="${disks[$((disk_number-1))]}"
+        break  
+    else  
+        echo -e "${RED}Numéro invalide. Veuillez réessayer.${NC}"
+    fi  
+done
+
 # Partitionnement du disque  
-echo -e "${GREEN}Partitionnement du disque...${NC}"
-lsblk  
-read -p "Quel disque souhaitez-vous partitionner ? (ex: /dev/sda) : " disk  
+echo -e "${GREEN}Partitionnement du disque $disk...${NC}"
 gdisk $disk
 
 # Formatage des partitions  
