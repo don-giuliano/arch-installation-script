@@ -5,8 +5,6 @@ LIGHT_BLUE='\033[1;34m' # Un bleu clair
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
 
-# Affichage du message de bienvenue  
-echo "---------------------------------------------------------------------------"
 echo -e "${LIGHT_BLUE}Bienvenue dans le script d'installation d'Arch Linux !${NC}"
 echo "---------------------------------------------------------------------------"
 
@@ -182,7 +180,7 @@ EOF
 # Gestion des utilisateurs 
 read -p "Entrez le nom d'utilisateur pour votre système : " username
 
-# Demander au utilisateur d'entrer un mot de passe pour le nouvel utilisateur  
+# Demander à l'utilisateur d'entrer un mot de passe pour le nouvel utilisateur  
 read -sp "Entrez le mot de passe pour l'utilisateur $username : " user_password  
 echo  
 read -sp "Confirmez le mot de passe pour l'utilisateur $username : " user_password_confirm  
@@ -200,9 +198,11 @@ useradd -m -G wheel "$username"
 echo "$username:$user_password" | chpasswd  
 EOF
 
-# Ajouter sudo si l'utilisateur a le groupe wheel  
+# Ajouter sudo permissions pour l'utilisateur 
 echo -e "${LIGHT_BLUE}Configuration de sudo pour l'utilisateur...${NC}"
-arch-chroot /mnt sed -i 's/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
+{
+    echo "%wheel ALL=(ALL) ALL"
+} >> /mnt/etc/sudoers.d/${username} || { echo -e "${RED}Erreur lors de l'ajout des droits sudo !${NC}"; exit 1; }
 
 # Installation du bootloader 
 echo -e "${LIGHT_BLUE}Installation du bootloader...${NC}"
@@ -213,6 +213,8 @@ pacman -S grub
 grub-install --target=i386-pc /dev/sda  
 grub-mkconfig -o /boot/grub/grub.cfg  
 EOF  
+else  
+    echo -e "${LIGHT_BLUE}GRUB ne sera pas installé.${NC}"
 fi
 
 # Finalisation 
